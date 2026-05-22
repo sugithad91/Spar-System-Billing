@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPAR Hypermarket - Inventory System</title>
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.1/JsBarcode.all.min.js" integrity="sha512-fLmJPYDfCIAZ0gpG/iiIzPw113KquhzI1bxG0XhiLYyqm8Ax2lEiq1h1qv2vafH9tLzkjm4HYRWSeKoGFH4xIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+                
+                <!-- FontAwesome Vector Graphics Icons Interface Link -->
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <link rel="stylesheet" href="./Assets/css/style.css">
+</head>
+<body>
+
+    <!-- Platform Sidebar Navigation Panels -->
+    <aside class="side-nav">
+        <div class="brand-header">
+            <i class="fa-solid fa-layer-group brand-icon"></i>
+            <div class="brand-text">SPAR <span>System</span></div>
+        </div>
+        <ul class="nav-links">
+            <li class="nav-link active" onclick="switchPage('dashboard-view', this)">
+                <i class="fa-solid fa-chart-simple"></i> <span>Dashboard</span>
+            </li>
+            <li class="nav-link" onclick="switchPage('inventory-view', this)">
+                <i class="fa-solid fa-boxes-packing"></i> <span>Inventory List</span>
+            </li>
+            <li class="nav-link" onclick="window.location.href='./supplier.html'">
+                <i class="fa-solid fa-truck-field"></i> <span>Suppliers Link</span>
+            </li>
+            <li class="nav-link" onclick="window.location.href='./report.html'">
+                <i class="fa-solid fa-file-invoice"></i><span>Reports & Alerts</span>
+            </li>
+             <li class="nav-link" onclick="window.location.href='./billing.html'">
+        <i class="fa-solid fa-receipt"></i> <span>POS Billing Hub</span>
+    </li>
+        </ul>
+    </aside>
+
+    <!-- Main Live Workspace Engine Layout -->
+    <main class="content-space">
+        
+        <!-- Tab Sub-Pane 1: Analytical Grid Canvas -->
+        <section id="dashboard-view" class="app-page active">
+            <h1 class="page-title">Dashboard Overview</h1>
+            <div class="metrics-grid">
+                <div class="metric-card card-total">
+                    <div>
+                        <h3>Total Product Lines</h3>
+                        <p id="metric-total">0</p>
+                    </div>
+                    <i class="fa-solid fa-box-open metric-icon"></i>
+                </div>
+                <div class="metric-card card-quantity">
+                    <div>
+                        <h3>Total Stock Units</h3>
+                        <p id="metric-quantity">0</p>
+                    </div>
+                    <i class="fa-solid fa-cubes metric-icon"></i>
+                </div>
+                <div class="metric-card card-low-stock">
+                    <div>
+                        <h3>Low Stock Alert (&lt; 10)</h3>
+                        <p id="metric-low-stock">0</p>
+                    </div>
+                    <i class="fa-solid fa-triangle-exclamation metric-icon" style="color: var(--mild-rose);"></i>
+                </div>
+                <div class="metric-card card-value">
+                    <div>
+                        <h3>Stock Capital Value</h3>
+                        <p id="metric-value">₹0.00</p>
+                    </div>
+                    <i class="fa-solid fa-wallet metric-icon"></i>
+                </div>
+            </div>
+            <div class="visuals-grid">
+                <div class="chart-wrapper"><canvas id="stockChart"></canvas></div>
+                <div class="chart-wrapper"><canvas id="conditionChart"></canvas></div>
+            </div>
+        </section>
+
+        <!-- Tab Sub-Pane 2: Stock Records Management Grid -->
+        <section id="inventory-view" class="app-page">
+            <h1 class="page-title">Inventory Directory</h1>
+            
+            <div class="control-strip">
+                <div class="search-filter-cluster">
+                   <input type="text" id="search-bar" class="mild-input" placeholder="Search by Name, ID, or Invoice..." oninput="filterDataGrid()">
+
+                    <select id="filter-cat-select" class="mild-input" onchange="filterDataGrid()">
+                        <option value="">All Categories</option>
+                    </select>
+                    <div class="date-filter-group">
+                        <label>Mfg:</label>
+                        <input type="date" id="filter-mfg-date" class="mild-input" onchange="filterDataGrid()">
+                    </div>
+                    <div class="date-filter-group">
+                        <label>Exp:</label>
+                        <input type="date" id="filter-exp-date" class="mild-input" onchange="filterDataGrid()">
+                    </div>
+                </div>
+                <div class="action-btn-cluster">
+                    
+                    <button class="mild-btn btn-muted" onclick="exportDataGridCSV()"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+                    <button class="mild-btn btn-accent" onclick="showProductModal()"><i class="fa-solid fa-plus"></i> Add Product</button>
+                </div>
+            </div>
+
+            <div class="grid-table-container">
+                <table class="mild-table">
+                    <thead>
+                        <tr>
+                            <th>Item ID</th>
+                            <th>Product Details</th>
+                            <th>Invoice Data</th>
+                            <th>Barcode Model</th>
+                            <th>Category</th>
+                            <th>Stock Quantity</th>
+                            <th>Base Price</th>
+                            <th>GST Bracket</th>
+                            <th>Lifespan Frame</th>
+                            <th style="text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-rows"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Overlay Form Modal Block: Dynamic Record Manager -->
+    <div class="overlay-modal" id="entry-modal">
+        <div class="modal-surface" style="max-width: 650px;">
+            <h2 id="modal-heading-text">New Product Record Form</h2>
+            <div id="form-validation-alert" class="validation-alert"></div>
+            <form id="product-entry-form" onsubmit="commitFormSubmission(event)">
+                <input type="hidden" id="entry-target-id">
+                <div class="modal-form-grid">
+                    <div class="form-row span-two">
+                        <label for="input-name">Product Name</label>
+                        <input type="text" id="input-name" class="mild-input" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-cat">Category Group</label>
+                        <div style="display: flex; gap: 6px;">
+                            <select id="input-cat" class="mild-input" style="flex: 1;" required></select>
+                            <button type="button" class="mild-btn btn-muted" style="padding: 0 12px; height: 38px;" onclick="triggerInlineCategoryInjection()"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-unit">Measurement Unit</label>
+                        <select id="input-unit" class="mild-input" required>
+                            <option value="kg">Kilograms (kg)</option>
+                            <option value="liters">Liters (L)</option>
+                            <option value="pack">Pack (pk)</option>
+                            <option value="gallons">Gallons (gal)</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-qty">Quantity Vol</label>
+                        <input type="number" id="input-qty" class="mild-input" min="0" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-price">Price Rate (INR)</label>
+                        <input type="number" id="input-price" class="mild-input" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-gst">GST Rate (%)</label>
+                        <select id="input-gst" class="mild-input">
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18">18%</option>
+                            <option value="28">28%</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-supplier-id">Linked Supplier Identity</label>
+                        <select id="input-supplier-id" class="mild-input" required></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-mfg">Mfg Production Date</label>
+                        <input type="date" id="input-mfg" class="mild-input" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="input-exp">Exp Term Date</label>
+                        <input type="date" id="input-exp" class="mild-input" required>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="input-cond">Condition State</label>
+                        <select id="input-cond" class="mild-input">
+                            <option value="Good">Good</option>
+                            <option value="Damaged">Damaged</option>
+                        </select>
+                    </div>
+                   <div class="form-row">
+                        <label for="input-invoice">Track Invoice ID</label>
+                        <input type="text" id="input-invoice" class="mild-input" placeholder="e.g., INV-99482" required>
+                    </div>
+
+                    <div class="form-row span-two">
+                        <label for="input-barcode">System Auto-Generated Barcode Sequence Code</label>
+                        <input type="text" id="input-barcode" class="mild-input" readonly style="background:#e9ecef; font-family:monospace; cursor:not-allowed;" placeholder="Barcode auto-assignment on instantiation">
+                    </div>
+                </div>
+                <div class="modal-action-row">
+                    <button type="button" class="mild-btn btn-muted" onclick="hideProductModal()">Cancel</button>
+                    <button type="submit" class="mild-btn btn-accent">Save Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+<!-- Load the local file relative to your index.html -->
+
+
+
+
+    <script src="./Assets/js/script.js"></script>
+</body>
+</html>

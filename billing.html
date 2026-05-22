@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPAR Hypermarket - Billing Terminal</title>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.1/JsBarcode.all.min.js" integrity="sha512-fLmJPYDfCIAZ0gpG/iiIzPw113KquhzI1bxG0XhiLYyqm8Ax2lEiq1h1qv2vafH9tLzkjm4HYRWSeKoGFH4xIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+                
+                <!-- FontAwesome Vector Graphics Icons Interface Link -->
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <link rel="stylesheet" href="./Assets/css/style.css">
+    <style>
+        .billing-grid { display: grid; grid-template-columns: 1.4fr 1.1fr; gap: 20px; margin-top: 15px; }
+        .billing-panel { background: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #E5E7EB; margin-bottom: 20px; }
+        .scan-container { background: #EFF6FF; border: 2px dashed #3B82F6; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .customer-container { background: #F9FAFB; border: 1px solid #D1D5DB; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+        .customer-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 8px; align-items: flex-end; }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #E5E7EB; }
+        .grand-total-row { display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #111827; font-size: 1.4rem; color: #111827; }
+        .camera-viewport { width: 100%; max-width: 320px; height: 240px; background: #000; border-radius: 6px; margin-top: 10px; display: none; position: relative; }
+        .camera-viewport video { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+        .scan-laser { position: absolute; top: 50%; left: 5%; width: 90%; height: 2px; background: red; box-shadow: 0 0 8px red; animation: laserMove 2s infinite linear; }
+        @keyframes laserMove { 0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; } }
+
+        /* STRICT MECHANICAL MEDIA PRINT SPECIFICATION OVERRIDES */
+        #printable-invoice-surface { display: block; background: #fff; padding: 15px; border: 1px solid #D1D5DB; border-radius: 6px; }
+        .invoice-header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+        .invoice-meta { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 12px; font-family: monospace; }
+        .print-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        .print-table th { border-bottom: 1px solid #000; text-align: left; padding: 4px; font-size: 0.8rem; }
+        .print-table td { padding: 4px; border-bottom: 1px dashed #E5E7EB; font-size: 0.8rem; }
+
+      @media print {
+    /* Hide everything on the page first */
+    body * { 
+        visibility: hidden !important; 
+    }
+    
+    /* Make the invoice container and its contents visible again */
+    #printable-invoice-surface, #printable-invoice-surface * { 
+        visibility: visible !important; 
+    }
+    
+    /* Safely reset display types back to standard mechanical table styles */
+    #printable-invoice-surface { 
+        display: block !important; 
+        position: absolute !important; 
+        left: 0 !important; 
+        top: 0 !important; 
+        width: 100% !important; 
+        border: none !important; 
+        margin: 0 !important; 
+        padding: 10mm !important; 
+        background: #fff !important;
+    }
+    
+    /* Force table components to retain their original side-by-side alignments */
+    #printable-invoice-surface table { display: table !important; width: 100% !important; border-collapse: collapse !important; }
+    #printable-invoice-surface thead { display: table-header-group !important; }
+    #printable-invoice-surface tbody { display: table-row-group !important; }
+    #printable-invoice-surface tr    { display: table-row !important; }
+    #printable-invoice-surface th    { display: table-cell !important; border-bottom: 2px solid #000 !important; }
+    #printable-invoice-surface td    { display: table-cell !important; }
+    
+    /* Keep layout headers or flex columns side-by-side if they use flexbox */
+    #printable-invoice-surface .invoice-meta { display: flex !important; justify-content: space-between !important; }
+
+    html, body { 
+        background: #fff !important; 
+        margin: 0 !important; 
+        padding: 0 !important; 
+    }
+}
+
+    </style>
+</head>
+<body>
+
+    <aside class="side-nav">
+        <div class="brand-header">
+            <i class="fa-solid fa-layer-group brand-icon"></i>
+            <div class="brand-text">SPAR <span>System</span></div>
+        </div>
+        <ul class="nav-links">
+            <li class="nav-link" onclick="window.location.href='./index.html'">
+                <i class="fa-solid fa-house-laptop"></i> <span>Return to Base</span>
+            </li>
+            <li class="nav-link active">
+                <i class="fa-solid fa-receipt"></i> <span>POS Billing Mode</span>
+            </li>
+            <li class="nav-link" onclick="window.location.href='./invoice.html'">
+                <i class="fa-solid fa-file-invoice"></i><span>Reports & Alerts</span>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="content-space">
+        <h1 class="page-title">Point-of-Sale Checkout Hub</h1>
+
+        <!-- Condition 1: Customer Type Segment Controller -->
+        <div class="customer-container">
+            <h3 style="margin:0; color:#374151;"><i class="fa-solid fa-user-gear"></i> Customer Profile Selection Matrix</h3>
+            <div class="customer-inputs">
+                <div>
+                    <label style="font-size:0.8rem; font-weight:600;">Customer Configuration Type</label>
+                    <select id="cust-type" class="mild-input" onchange="toggleCustomerTypeState()">
+                        <option value="walkin">Walk-In Customer</option>
+                        <option value="regular">Regular Registered Customer</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; font-weight:600;">Mobile Identity Number</label>
+                    <input type="tel" id="cust-phone" class="mild-input" placeholder="N/A (Walk-In Profile)" disabled oninput="handleRegularProfileLookup()">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem; font-weight:600;">Customer Client Name</label>
+                    <input type="text" id="cust-name" class="mild-input" placeholder="Walk-In Customer" disabled oninput="syncPrintInvoiceMetadata()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Condition 3: Barcode Inputs & Dynamic Camera Scan Viewport -->
+        <div class="scan-container">
+            <div style="display: flex; gap: 15px; align-items: center; width: 100%;">
+                <i class="fa-solid fa-barcode" style="font-size: 2rem; color: #2563EB;"></i>
+                <div style="flex-grow: 1;">
+                    <label style="display:block; font-size:0.8rem; font-weight:700; color:#1E40AF;">HARDWARE / KEYBOARD MANUAL ENTRY</label>
+                    <input type="text" id="barcode-scanner-mock" class="mild-input" placeholder="Scan Barcode ID (e.g., SPAR-9081) and tap Enter..." autofocus onkeydown="captureHardwareBarcodeScan(event)">
+                </div>
+                <button class="mild-btn btn-muted" style="height:42px; margin-top:16px;" onclick="toggleCameraScannerEngine()">
+                    <i class="fa-solid fa-camera"></i> Toggle Video Camera
+                </button>
+                <button class="mild-btn btn-accent" style="height: 42px; margin-top: 16px;" onclick="processManualScanTrigger()">Pull Line</button>
+            </div>
+            
+            <!-- Video Capture Surface Container -->
+            <div class="camera-viewport" id="video-container">
+                <video id="camera-stream-source" autoplay playsinline></video>
+                <div class="scan-laser"></div>
+            </div>
+            <div id="scanner-status" style="font-size: 0.85rem; color: #2563EB; font-weight: 600; display:none;">Camera Scanner Active... Simulation Loop Reading Frame Processing Layers</div>
+        </div>
+
+        <div id="billing-alert" style="background:#FEF2F2; color:#991B1B; padding:10px; border-radius:6px; margin-bottom:15px; display:none;"></div>
+
+        <div class="billing-grid">
+            <div class="billing-panel">
+                <h3 style="margin-top:0; margin-bottom:15px;"><i class="fa-solid fa-basket-shopping"></i> Current Checkout Cart Ledger</h3>
+                <div class="grid-table-container" style="border:none;">
+                    <table class="mild-table">
+                        <thead>
+                            <tr>
+                                <th>Product Details</th>
+                                <th>Base Cost</th>
+                                <th>Qty</th>
+                                <th>Tax</th>
+                                <th>Total Gross</th>
+                                <th style="text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cart-ledger-rows">
+                            <tr><td colspan="6" style="text-align:center; padding:3rem; color:gray;">Terminal idle. Awaiting hardware item signals...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="billing-panel" style="display:flex; flex-direction:column; justify-content:space-between;">
+                <div>
+                    <h3 style="margin-top:0; margin-bottom:15px;"><i class="fa-solid fa-file-invoice-dollar"></i> Live Analytical Summary</h3>
+                    <div class="summary-row"><span>Total Segments:</span><strong id="summary-items-count">0</strong></div>
+                    <div class="summary-row"><span>Cart Base Value:</span><strong id="summary-base-value">₹0.00</strong></div>
+                    <div class="summary-row"><span>GST Tax Value:</span><strong id="summary-gst-value">₹0.00</strong></div>
+                    <div class="grand-total-row"><span>Gross Payable:</span><b id="summary-grand-total">₹0.00</b></div>
+                </div>
+
+                <!-- Structural Printable Customer Matrix Layout Pane -->
+                <div id="printable-invoice-surface">
+                    <div class="invoice-header">
+                        <h2 style="margin:0; text-transform:uppercase; letter-spacing:1px; font-size:1.4rem;">SPAR Hypermarket</h2>
+                        <small style="color:gray;">Commercial Tax Invoice Record Terminal #12</small>
+                    </div>
+                    <div class="invoice-meta">
+                        <div>
+                            <strong>Invoice No:</strong> <span id="inv-num-tag">N/A</span><br>
+                            <strong>Date Stamp:</strong> <span id="inv-date-tag">N/A</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <strong>Customer Name:</strong> <span id="print-cust-name">Walk-In Customer</span><br>
+                            <strong>Phone Number:</strong> <span id="print-cust-phone">N/A</span>
+                        </div>
+                    </div>
+                    <table class="print-table">
+                        <thead>
+                            <tr>
+                                <th>Particulars</th>
+                                <th>Qty</th>
+                                <th>Rate</th>
+                                <th>GST %</th>
+                                <th style="text-align:right;">Final Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoice-print-rows">
+                            <tr><td colspan="5" style="text-align:center; color:gray;">Cart Empty</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="text-align:right; font-family:monospace; line-height:1.5; font-size:0.85rem;">
+                        <div>Base Net Subtotal: <span id="print-subtotal">₹0.00</span></div>
+                        <div>Total GST Tax Duty: <span id="print-gst">₹0.00</span></div>
+                        <div style="font-size:1rem; font-weight:bold; border-top:1px dashed #000; padding-top:4px; margin-top:4px;">Grand Total Bill: <span id="print-grand">₹0.00</span></div>
+                    </div>
+                </div>
+
+                <button class="mild-btn btn-accent" style="width:100%; margin-top:20px; padding:12px; font-weight:bold;" onclick="triggerSecureInvoicePrinter()"><i class="fa-solid fa-print"></i> Save Transaction & Print Bill</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentCheckoutCart = [];
+        let stockRegistryCache = [];
+        let regularCustomerDatabase = [
+            { phone: "9876543210", name: "Anand Verma" },
+            { phone: "9123456789", name: "Kiran Patel" },
+            { phone: "8887776665", name: "Suresh Kumar" }
+        ];
+        let mediaStreamTrackReference = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const rawData = localStorage.getItem('spar_stock_registry');
+            if(rawData) stockRegistryCache = JSON.parse(rawData);
+            
+            // Sync custom regular profile additions if missing
+            if(!localStorage.getItem('spar_regular_customers')) {
+                localStorage.setItem('spar_regular_customers', JSON.stringify(regularCustomerDatabase));
+            } else {
+                regularCustomerDatabase = JSON.parse(localStorage.getItem('spar_regular_customers'));
+            }
+            generateFreshInvoiceMetadata();
+        });
+
+        function generateFreshInvoiceMetadata() {
+            document.getElementById('inv-num-tag').textContent = `TXN-${Math.floor(100000 + Math.random() * 900000)}`;
+            document.getElementById('inv-date-tag').textContent = new Date().toLocaleString('en-IN');
+        }
+
+        // Condition 1 Rule Layout: Dropdown configuration toggle loop handler
+        function toggleCustomerTypeState() {
+            const selectedType = document.getElementById('cust-type').value;
+            const phoneField = document.getElementById('cust-phone');
+            const nameField = document.getElementById('cust-name');
+
+            if (selectedType === 'walkin') {
+                phoneField.disabled = true; phoneField.value = ''; phoneField.required = false;
+                nameField.disabled = true; nameField.value = 'Walk-In Customer';
+            } else {
+                phoneField.disabled = false; phoneField.placeholder = "Enter Registered Phone..."; phoneField.required = true;
+                nameField.disabled = false; nameField.value = ''; nameField.placeholder = "Awaiting Phone Lookup Verification...";
+            }
+            syncPrintInvoiceMetadata();
+        }
+
+        function handleRegularProfileLookup() {
+            const phoneValue = document.getElementById('cust-phone').value.trim();
+            const nameField = document.getElementById('cust-name');
+            
+            if(phoneValue.length >= 10) {
+                const clientMatch = regularCustomerDatabase.find(c => c.phone === phoneValue);
+                if(clientMatch) {
+                    nameField.value = clientMatch.name;
+                } else {
+                    // Instantly auto-provisions a profile line item mapping entry if not found
+                    nameField.value = "New Regular Customer";
+                }
+            }
+            syncPrintInvoiceMetadata();
+        }
+
+        function syncPrintInvoiceMetadata() {
+            const selectedType = document.getElementById('cust-type').value;
+            const rawName = document.getElementById('cust-name').value.trim();
+            const rawPhone = document.getElementById('cust-phone').value.trim();
+
+            document.getElementById('print-cust-name').textContent = selectedType === 'walkin' ? "Walk-In Customer" : (rawName || "Regular Profile");
+            document.getElementById('print-cust-phone').textContent = selectedType === 'walkin' ? "N/A (Cash Counter Transaction)" : (rawPhone || "Required");
+        }
+
+        // Condition 3 Rule Layout: HTML5 Stream Camera Video Capture Core Routine
+        async function toggleCameraScannerEngine() {
+            const videoPanel = document.getElementById('video-container');
+            const statusLabel = document.getElementById('scanner-status');
+            const streamView = document.getElementById('camera-stream-source');
+
+            if (mediaStreamTrackReference) {
+                // If streaming, turn off hardware sensors
+                mediaStreamTrackReference.getTracks().forEach(track => track.stop());
+                mediaStreamTrackReference = null;
+                videoPanel.style.display = 'none';
+                statusLabel.style.display = 'none';
+            } else {
+                try {
+                    const captureConstraints = { video: { facingMode: "environment" }, audio: false };
+                    mediaStreamTrackReference = await navigator.mediaDevices.getUserMedia(captureConstraints);
+                    streamView.srcObject = mediaStreamTrackReference;
+                    videoPanel.style.display = 'block';
+                    statusLabel.style.display = 'block';
+                    runVideoFrameBarcodeProcessorSimulation();
+                } catch (err) {
+                    alert("Hardware Interface Blocked: Camera security permissions denied.");
+                }
+            }
+        }
+
+        // Simulates high-performance visual processing framework scan feedback loop
+        function runVideoFrameBarcodeProcessorSimulation() {
+            if(!mediaStreamTrackReference) return;
+            setTimeout(() => {
+                if(stockRegistryCache.length > 0 && mediaStreamTrackReference) {
+                    // Pick random item from current database to simulate high-accuracy laser trigger detection
+                    const sampleProduct = stockRegistryCache[Math.floor(Math.random() * stockRegistryCache.length)];
+                    document.getElementById('barcode-scanner-mock').value = sampleProduct.id;
+                    processManualScanTrigger();
+                    // Auto shut-off to prevent infinite continuous processing loops
+                    toggleCameraScannerEngine();
+                }
+            }, 5000); // Scans matching targets inside 5-second sampling cycles
+        }
+
+        function captureHardwareBarcodeScan(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                processManualScanTrigger();
+            }
+        }
+
+        function processManualScanTrigger() {
+            const scannerInput = document.getElementById('barcode-scanner-mock');
+            const targetBarcode = scannerInput.value.trim();
+            const alertBox = document.getElementById('billing-alert');
+            
+            alertBox.style.display = 'none';
+            if(!targetBarcode) return;
+
+            const matchedProduct = stockRegistryCache.find(p => p.id.toLowerCase() === targetBarcode.toLowerCase());
+
+            if(matchedProduct) {
+                if(matchedProduct.quantity <= 0) {
+                    alertBox.textContent = `Stock Violation: Core parameters indicate '${matchedProduct.name}' is out of stock.`;
+                    alertBox.style.display = 'block';
+                    return;
+                }
+
+                const existingCartItem = currentCheckoutCart.find(item => item.id === matchedProduct.id);
+
+                if(existingCartItem) {
+                    if(existingCartItem.checkoutQty >= matchedProduct.quantity) {
+                        alertBox.textContent = `Limits Reached: Max stock units matching database parameters added.`;
+                        alertBox.style.display = 'block';
+                        return;
+                    }
+                    existingCartItem.checkoutQty++;
+                } else {
+                    currentCheckoutCart.push({ ...matchedProduct, checkoutQty: 1 });
+                }
+
+                scannerInput.value = '';
+                rebuildBillingInterfaces();
+            } else {
+                alertBox.textContent = `Error: Scan Target '${targetBarcode}' not found in registry database.`;
+                alertBox.style.display = 'block';
+            }
+        }
+
+        function modifyLineQuantity(productId, deltaModifier) {
+            const item = currentCheckoutCart.find(p => p.id === productId);
+            const originalProduct = stockRegistryCache.find(p => p.id === productId);
+            
+            if(item) {
+                item.checkoutQty += deltaModifier;
+                if(item.checkoutQty > originalProduct.quantity) item.checkoutQty = originalProduct.quantity;
+                if(item.checkoutQty <= 0) currentCheckoutCart = currentCheckoutCart.filter(p => p.id !== productId);
+                rebuildBillingInterfaces();
+            }
+        }
+
+        function dropCartLineItem(productId) {
+            currentCheckoutCart = currentCheckoutCart.filter(p => p.id !== productId);
+            rebuildBillingInterfaces();
+        }
+
+        function rebuildBillingInterfaces() {
+            const tableBody = document.getElementById('cart-ledger-rows');
+            const printBody = document.getElementById('invoice-print-rows');
+            
+            tableBody.innerHTML = ''; printBody.innerHTML = '';
+
+            if(currentCheckoutCart.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:3rem; color:gray;">Terminal idle.</td></tr>`;
+                printBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:gray;">Ledger Empty</td></tr>`;
+                updateSummaryInterfaceMetrics(0, 0, 0, 0);
+                return;
+            }
+
+            let computedSubtotal = 0; let computedTaxPool = 0;
+
+            currentCheckoutCart.forEach(item => {
+                const totalItemBase = item.price * item.checkoutQty;
+                const totalItemTax = totalItemBase * (item.gst / 100);
+                const finalGrossAmount = totalItemBase + totalItemTax;
+
+                computedSubtotal += totalItemBase; computedTaxPool += totalItemTax;
+
+                tableBody.innerHTML += `
+                    <tr>
+                        <td><strong>${item.name}</strong><br><small style="color:gray;">ID: ${item.id}</small></td>
+                        <td>₹${item.price.toFixed(2)}</td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <button class="mild-btn btn-muted" style="padding:2px 8px;" onclick="modifyLineQuantity('${item.id}', -1)">-</button>
+                                <strong>${item.checkoutQty}</strong>
+                                <button class="mild-btn btn-muted" style="padding:2px 8px;" onclick="modifyLineQuantity('${item.id}', 1)">+</button>
+                            </div>
+                        </td>
+                        <td>${item.gst}%</td>
+                        <td><strong>₹${finalGrossAmount.toFixed(2)}</strong></td>
+                        <td style="text-align:center;"><button class="mild-btn" onclick="dropCartLineItem('${item.id}')"><i class="fa-solid fa-xmark" style="color:red;"></i></button></td>
+                    </tr>`;
+
+                printBody.innerHTML += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.checkoutQty}</td>
+                        <td>₹${item.price.toFixed(2)}</td>
+                        <td>${item.gst}%</td>
+                        <td style="text-align:right;">₹${finalGrossAmount.toFixed(2)}</td>
+                    </tr>`;
+            });
+
+            updateSummaryInterfaceMetrics(currentCheckoutCart.length, computedSubtotal, computedTaxPool, (computedSubtotal + computedTaxPool));
+        }
+
+        function updateSummaryInterfaceMetrics(count, sub, gst, grand) {
+            document.getElementById('summary-items-count').textContent = count;
+            document.getElementById('summary-base-value').textContent = `₹${sub.toFixed(2)}`;
+            document.getElementById('summary-gst-value').textContent = `₹${gst.toFixed(2)}`;
+            document.getElementById('summary-grand-total').textContent = `₹${grand.toFixed(2)}`;
+
+            document.getElementById('print-subtotal').textContent = `₹${sub.toFixed(2)}`;
+            document.getElementById('print-gst').textContent = `₹${gst.toFixed(2)}`;
+            document.getElementById('print-grand').textContent = `₹${grand.toFixed(2)}`;
+        }
+
+        // Condition 2 Rule Layout: Save payment log parameters into Local Database Arrays
+        function triggerSecureInvoicePrinter() {
+            const customerType = document.getElementById('cust-type').value;
+            const phoneVal = document.getElementById('cust-phone').value.trim();
+            const nameVal = document.getElementById('cust-name').value.trim() || "Walk-In Profile";
+            const currentTxnID = document.getElementById('inv-num-tag').textContent;
+
+            if (customerType === 'regular' && !phoneVal) {
+                alert("Hold: Regular Customer configurations require valid mobile numbers before finalization.");
+                return;
+            }
+
+            if(currentCheckoutCart.length === 0) {
+                alert("Cannot generate transaction prints on empty ledger states.");
+                return;
+            }
+
+            // Deduct stock levels from cache database
+            stockRegistryCache.forEach(prod => {
+                const match = currentCheckoutCart.find(c => c.id === prod.id);
+                if(match) prod.quantity = Math.max(0, prod.quantity - match.checkoutQty);
+            });
+            localStorage.setItem('spar_stock_registry', JSON.stringify(stockRegistryCache));
+
+            // Archive the transaction to spar_sales_history database layout arrays
+            const finalPayableSum = parseFloat(document.getElementById('print-grand').textContent.replace('₹', ''));
+            const systemSalesArchive = JSON.parse(localStorage.getItem('spar_sales_history')) || [];
+            
+            // Build historical schema object mapping footprint patterns
+            const invoiceRecordStructure = {
+                invoiceNumber: currentTxnID,
+                timestamp: new Date().toLocaleString('en-IN'),
+                customerName: customerType === 'walkin' ? "Walk-In Customer" : nameVal,
+                customerPhone: customerType === 'walkin' ? "0000000000" : phoneVal,
+                purchasedItems: currentCheckoutCart.map(i => ({ name: i.name, qty: i.checkoutQty, finalPrice: i.price * i.checkoutQty })),
+                netTotalPayable: finalPayableSum
+            };
+
+            
+            localStorage.setItem('spar_sales_history', JSON.stringify(systemSalesArchive));
+            systemSalesArchive.push(invoiceRecordStructure);
+
+            // Update registered regular customer directory if a new profile was created
+            if(customerType === 'regular' && !regularCustomerDatabase.some(r => r.phone === phoneVal)) {
+               
+                localStorage.setItem('spar_regular_customers', JSON.stringify(regularCustomerDatabase));
+                 regularCustomerDatabase.push({ phone: phoneVal, name: nameVal }); 
+            }
+            function commitTransactionLedgerState() {
+    if (activeRegisterCart.length === 0) return;
+
+    // 1. Create a structured transaction object matching the layout schema
+    const freshInvoiceRecord = {
+        id: activeInvoiceNumber,
+        name: document.getElementById('lbl-customer-name').innerText,
+        timestamp: new Date().toLocaleDateString('en-GB'),
+        total: parseFloat(runningTotals.finalBill.toFixed(2)),
+        weekLabel: 'Week 4', 
+        monthLabel: 'May'
+    };
+
+    // 2. Fetch the current store array, push the new item, and write it back
+    let trackingHistory = JSON.parse(localStorage.getItem('spar_invoice_ledger')) || [];
+    trackingHistory.push(freshInvoiceRecord);
+    localStorage.setItem('spar_invoice_ledger', JSON.stringify(trackingHistory));
+
+    
+}
+
+
+            // Execute print command
+            window.print();
+
+            // Reset interface variables for the next terminal session
+            currentCheckoutCart = [];
+            document.getElementById('cust-phone').value = '';
+            document.getElementById('cust-name').value = 'Walk-In Customer';
+            document.getElementById('cust-type').value = 'walkin';
+            toggleCustomerTypeState();
+            generateFreshInvoiceMetadata();
+            rebuildBillingInterfaces();
+        }
+        function saveTransactionToHistory(cartItems, customerName, customerPhone, grandTotal) {
+  
+}
+
+
+
+
+
+
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPAR Hypermarket - Expiration Control Panel</title>
+   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.1/JsBarcode.all.min.js" integrity="sha512-fLmJPYDfCIAZ0gpG/iiIzPw113KquhzI1bxG0XhiLYyqm8Ax2lEiq1h1qv2vafH9tLzkjm4HYRWSeKoGFH4xIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+                
+                <!-- FontAwesome Vector Graphics Icons Interface Link -->
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <link rel="stylesheet" href="./Assets/css/style.css">
+</head>
+<body>
+
+    <aside class="side-nav">
+        <div class="brand-header">
+            <i class="fa-solid fa-layer-group brand-icon"></i>
+            <div class="brand-text">SPAR <span>System</span></div>
+        </div>
+        <ul class="nav-links">
+            <li class="nav-link" onclick="window.location.href='./index.html'">
+                <i class="fa-solid fa-house-laptop"></i> <span>Return to Base</span>
+            </li>
+            <li class="nav-link active" onclick="window.location.reload()">
+                <i class="fa-solid fa-shield-halved"></i> <span>Critical Alerts</span>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="content-space">
+        <h1 class="page-title">Lifespan Exceptions & Risk Summary</h1>
+
+        <div style="background-color: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; padding: 1.25rem; border-radius: 8px; margin-bottom: 25px; display:none;" id="global-risk-banner">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <i class="fa-solid fa-skull-crossbones style-font-size:24px;"></i>
+                <div>
+                    <strong>Action Required:</strong> <span id="banner-text-details"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-table-container">
+            <table class="mild-table">
+                <thead>
+                    <tr>
+                        <th>Item ID</th>
+                        <th>Product Context Description</th>
+                        <th>Category Group</th>
+                        <th>Current Quantity Remaining</th>
+                        <th>Expirations Date Flag</th>
+                        <th>Operating Threat Index Level</th>
+                    </tr>
+                </thead>
+                <tbody id="risk-matrix-table-rows"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="./Assets/js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            evaluateThreatAnalysisMatrix();
+        });
+
+        function evaluateThreatAnalysisMatrix() {
+            const targetRows = document.getElementById('risk-matrix-table-rows');
+            const banner = document.getElementById('global-risk-banner');
+            const bannerText = document.getElementById('banner-text-details');
+            
+            const rawProducts = localStorage.getItem('spar_stock_registry');
+            if(!rawProducts) {
+                targetRows.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem;">Data cache empty. Initializing baseline array states...</td></tr>`;
+                return;
+            }
+
+            const activeCollection = JSON.parse(rawProducts);
+            targetRows.innerHTML = '';
+            
+            const dynamicSystemTime = new Date(); // 2026 Runtime Environment
+            const criticalAlertTimeHorizon = new Date();
+            criticalAlertTimeHorizon.setMonth(criticalAlertTimeHorizon.getMonth() + 1);
+
+            let calculatedRiskItemsCount = 0;
+
+            activeCollection.forEach(item => {
+                const targetExpirationMarker = new Date(item.expDate);
+                
+                // Triggers risk calculations when expiration parameters clear within a 30-day window
+                if(targetExpirationMarker <= criticalAlertTimeHorizon) {
+                    calculatedRiskItemsCount++;
+                    const rowElement = document.createElement('tr');
+                    
+                    let riskClassificationBadge = '';
+                    if(targetExpirationMarker < dynamicSystemTime) {
+                        rowElement.style.background = '#FEE2E2';
+                        riskClassificationBadge = `<span class="status-badge damaged" style="color:red; background:#FFF;">EXPIRED REJECT</span>`;
+                    } else {
+                        rowElement.style.background = '#FFF7ED';
+                        riskClassificationBadge = `<span class="status-badge low-stock" style="color:#C2410C; background:#FFF;">30-DAY CRITICAL</span>`;
+                    }
+
+                    rowElement.innerHTML = `
+                        <td style="font-family:monospace; font-weight:bold;">${item.id}</td>
+                        <td><strong>${item.name}</strong><br><small style="color:var(--text-secondary);">INV ID: ${item.invoice || 'N/A'}</small></td>
+                        <td>${item.category}</td>
+                        <td>${item.quantity} ${item.unit || 'units'}</td>
+                        <td style="color:var(--mild-rose); font-weight:bold;">${item.expDate}</td>
+                        <td>${riskClassificationBadge}</td>
+                    `;
+                    targetRows.appendChild(rowElement);
+                }
+            });
+
+            if(calculatedRiskItemsCount > 0) {
+                banner.style.display = 'block';
+                bannerText.textContent = `A total of ${calculatedRiskItemsCount} individual product segments contain active lifespan parameter conflicts threatening localized compliance metrics. Review expiration matrix timelines instantly.`;
+            } else {
+                targetRows.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--mild-sage); font-weight:600;">System Stable. Zero product segments showing structural threat variations inside a 30-day monitoring window.</td></tr>`;
+            }
+        }
+    </script>
+</body>
+</html>

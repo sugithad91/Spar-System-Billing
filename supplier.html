@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPAR Hypermarket - Suppliers Directory</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.12.1/JsBarcode.all.min.js" integrity="sha512-fLmJPYDfCIAZ0gpG/iiIzPw113KquhzI1bxG0XhiLYyqm8Ax2lEiq1h1qv2vafH9tLzkjm4HYRWSeKoGFH4xIw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+                
+                <!-- FontAwesome Vector Graphics Icons Interface Link -->
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <link rel="stylesheet" href="./Assets/css/style.css">
+</head>
+<body>
+
+    <aside class="side-nav">
+        <div class="brand-header">
+            <i class="fa-solid fa-layer-group brand-icon"></i>
+            <div class="brand-text">SPAR <span>System</span></div>
+        </div>
+        <ul class="nav-links">
+            <li class="nav-link" onclick="window.location.href='./index.html'">
+                <i class="fa-solid fa-house-laptop"></i> <span>Return to Base</span>
+            </li>
+            <li class="nav-link active" onclick="window.location.reload()">
+                <i class="fa-solid fa-truck-field"></i> <span>Suppliers Directory</span>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="content-space">
+        <h1 class="page-title">Operational Suppliers Index</h1>
+        
+        <div class="control-strip">
+            <div class="search-filter-cluster">
+                <h3>Register Enterprise Node</h3>
+            </div>
+            <div class="action-btn-cluster">
+                <button class="mild-btn btn-accent" onclick="openSupplierForm()"><i class="fa-solid fa-user-plus"></i> Add Vendor</button>
+            </div>
+        </div>
+
+        <div class="grid-table-container">
+            <table class="mild-table">
+                <thead>
+                    <tr>
+                        <th>Supplier ID</th>
+                        <th>Trading Entity Name</th>
+                        <th>Contact Number</th>
+                        <th>Email Coordinate</th>
+                        <th>Corporate Office Domain Location</th>
+                    </tr>
+                </thead>
+                <tbody id="suppliers-table-rows"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Overlay Form Modal: Vendor Registry -->
+    <div class="overlay-modal" id="vendor-modal">
+        <div class="modal-surface" style="width: 450px;">
+            <h2>Supplier Registration Node</h2>
+            <form id="supplier-reg-form" onsubmit="commitSupplierEntry(event)">
+                <div class="modal-form-grid" style="grid-template-columns: 1fr;">
+                    <div class="form-row">
+                        <label for="v-name">Vendor Business Name</label>
+                        <input type="text" id="v-name" class="mild-input" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="v-phone">Active Telephone Line</label>
+                        <input type="text" id="v-phone" class="mild-input" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="v-email">Secure Corporate Email</label>
+                        <input type="email" id="v-email" class="mild-input" required>
+                    </div>
+                    <div class="form-row">
+                        <label for="v-address">Physical Logistics Warehouse Location</label>
+                        <input type="text" id="v-address" class="mild-input" required>
+                    </div>
+                </div>
+                <div class="modal-action-row" style="margin-top:15px;">
+                    <button type="button" class="mild-btn btn-muted" onclick="closeSupplierForm()">Cancel</button>
+                    <button type="submit" class="mild-btn btn-accent">Save Entity</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="./Assets/js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderSuppliersGrid();
+        });
+        function openSupplierForm() { document.getElementById('vendor-modal').classList.add('open'); }
+        function closeSupplierForm() { document.getElementById('vendor-modal').classList.remove('open'); }
+        function commitSupplierEntry(e) {
+            e.preventDefault();
+            const list = JSON.parse(localStorage.getItem('spar_suppliers')) || [];
+            const nextId = "SUP-" + String(list.length + 1001);
+            list.push({
+                id: nextId,
+                name: document.getElementById('v-name').value,
+                phone: document.getElementById('v-phone').value,
+                email: document.getElementById('v-email').value,
+                address: document.getElementById('v-address').value
+            });
+            localStorage.setItem('spar_suppliers', JSON.stringify(list));
+            document.getElementById('supplier-reg-form').reset();
+            closeSupplierForm();
+            renderSuppliersGrid();
+        }
+        function renderSuppliersGrid() {
+            const tbody = document.getElementById('suppliers-table-rows');
+            const data = JSON.parse(localStorage.getItem('spar_suppliers')) || [];
+            tbody.innerHTML = '';
+            if(!data.length) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:2rem; color:var(--text-secondary);">Zero operational vendor registries matching local cache scopes.</td></tr>`;
+                return;
+            }
+            data.forEach(v => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-family:monospace; font-weight:bold; color:var(--text-secondary);">${v.id}</td>
+                        <td style="font-weight:600;">${v.name}</td>
+                        <td>${v.phone}</td>
+                        <td>${v.email}</td>
+                        <td>${v.address}</td>
+                    </tr>`;
+            });
+        }
+    </script>
+</body>
+</html>
